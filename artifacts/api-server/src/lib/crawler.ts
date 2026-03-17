@@ -1,6 +1,30 @@
 import { db, crawlSessionsTable, listingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
+interface OlxApiOffer {
+  id: number;
+  url: string;
+  title: string;
+  description: string;
+  params: Array<{ key: string; value: { label?: string } }>;
+  photos: Array<{ link: string }>;
+  user: {
+    name: string;
+    created: string;
+  };
+  location: {
+    city: { name: string };
+    region: { name: string };
+  };
+}
+
+interface OlxApiResponse {
+  data: OlxApiOffer[];
+  links: {
+    next?: { href: string };
+  };
+}
+
 interface ScrapedListing {
   olxId: string;
   title: string;
@@ -29,147 +53,90 @@ async function updateSession(
     .where(eq(crawlSessionsTable.id, sessionId));
 }
 
-function buildOlxUrl(location: string, productName: string, page: number): string {
-  const encodedProduct = encodeURIComponent(productName.toLowerCase().replace(/\s+/g, "-"));
-  const encodedLocation = encodeURIComponent(location.toLowerCase().replace(/\s+/g, "-"));
-  const base = `https://www.olx.pl/oferty/q-${encodedProduct}`;
-  if (page > 1) {
-    return `${base}/?page=${page}`;
-  }
-  return base;
+function buildApiUrl(productName: string, offset: number): string {
+  const query = encodeURIComponent(productName);
+  return `https://www.olx.pl/api/v1/offers/?offset=${offset}&limit=40&query=${query}&currency=PLN&sort_by=created_at%3Adesc`;
 }
 
-async function fetchPageListings(url: string): Promise<{ listings: ScrapedListing[]; hasMore: boolean }> {
+function parseOffer(offer: OlxApiOffer): ScrapedListing {
+  const priceParam = offer.params?.find((p) => p.key === "price");
+  const price = priceParam?.value?.label ?? null;
+
+  let imageUrl: string | null = null;
+  if (offer.photos && offer.photos.length > 0) {
+    imageUrl = offer.photos[0].link.replace("{width}x{height}", "400x300");
+  }
+
+  const city = offer.location?.city?.name ?? "";
+  const region = offer.location?.region?.name ?? "";
+  const location = city && region ? `${city}, ${region}` : city || region || null;
+
+  const sellerJoinDate = offer.user?.created
+    ? new Date(offer.user.created).toLocaleDateString("pl-PL", {
+        year: "numeric",
+        month: "long",
+      })
+    : null;
+
+  return {
+    olxId: String(offer.id),
+    title: offer.title,
+    price,
+    imageUrl,
+    listingUrl: offer.url,
+    description: offer.description?.slice(0, 1000) ?? null,
+    sellerName: offer.user?.name ?? null,
+    sellerJoinDate,
+    location,
+  };
+}
+
+async function fetchPageOffers(url: string): Promise<{ listings: ScrapedListing[]; nextUrl: string | null }> {
   const response = await fetch(url, {
     headers: {
+      Accept: "application/json",
       "User-Agent":
-        "Mozilla/5.0 (Linux; Android 11; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-      "Accept-Language": "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7",
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      Referer: "https://www.olx.pl/",
     },
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    throw new Error(`OLX API error HTTP ${response.status}: ${response.statusText}`);
   }
 
-  const html = await response.text();
+  const json = (await response.json()) as OlxApiResponse;
 
-  const listings: ScrapedListing[] = [];
+  const listings = (json.data ?? []).map(parseOffer);
+  const nextUrl = json.links?.next?.href ?? null;
 
-  const listingRegex =
-    /<div[^>]*data-cy="l-card"[^>]*>[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/g;
-
-  const idRegex = /data-id="([^"]+)"/;
-  const titleRegex = /<h6[^>]*class="[^"]*css-[^"]*"[^>]*>([^<]+)<\/h6>/;
-  const priceRegex = /<p[^>]*data-testid="ad-price"[^>]*>([^<]+)<\/p>/;
-  const imgRegex = /<img[^>]*src="([^"]*(?:image|photo|img)[^"]*)"[^>]*>/i;
-  const urlRegex = /href="(https:\/\/www\.olx\.pl\/oferta\/[^"]+)"/;
-  const locationRegex = /<p[^>]*data-testid="location-date"[^>]*>\s*<span>([^<]+)<\/span>/;
-
-  let match;
-  while ((match = listingRegex.exec(html)) !== null) {
-    const block = match[0];
-
-    const idMatch = idRegex.exec(block);
-    const titleMatch = titleRegex.exec(block);
-    const urlMatch = urlRegex.exec(block);
-
-    if (!idMatch || !titleMatch || !urlMatch) continue;
-
-    const priceMatch = priceRegex.exec(block);
-    const imgMatch = imgRegex.exec(block);
-    const locationMatch = locationRegex.exec(block);
-
-    listings.push({
-      olxId: idMatch[1],
-      title: titleMatch[1].trim(),
-      price: priceMatch ? priceMatch[1].trim() : null,
-      imageUrl: imgMatch ? imgMatch[1] : null,
-      listingUrl: urlMatch[1],
-      description: null,
-      sellerName: null,
-      sellerJoinDate: null,
-      location: locationMatch ? locationMatch[1].trim() : null,
-    });
-  }
-
-  if (listings.length === 0) {
-    const altTitleRegex = /<h6[^>]*>([\s\S]*?)<\/h6>/g;
-    const altUrlRegex = /href="(https:\/\/www\.olx\.(?:pl|ua|ro|bg|pt)\/(?:oferta|d)[^"]+)"/g;
-    const altPriceRegex = /(\d[\d\s]*(?:zł|PLN|UAH|RON))/g;
-    
-    const titles: string[] = [];
-    const urls: string[] = [];
-    const prices: string[] = [];
-    
-    let m;
-    while ((m = altTitleRegex.exec(html)) !== null) {
-      const t = m[1].replace(/<[^>]+>/g, "").trim();
-      if (t.length > 5 && t.length < 200) titles.push(t);
-    }
-    while ((m = altUrlRegex.exec(html)) !== null) {
-      urls.push(m[1]);
-    }
-    while ((m = altPriceRegex.exec(html)) !== null) {
-      prices.push(m[1]);
-    }
-    
-    for (let i = 0; i < Math.min(titles.length, urls.length); i++) {
-      const listingUrl = urls[i];
-      const urlParts = listingUrl.split("/");
-      const olxId = urlParts[urlParts.length - 1] || `listing-${Date.now()}-${i}`;
-      
-      listings.push({
-        olxId,
-        title: titles[i],
-        price: prices[i] || null,
-        imageUrl: null,
-        listingUrl,
-        description: null,
-        sellerName: null,
-        sellerJoinDate: null,
-        location: null,
-      });
-    }
-  }
-
-  const hasMore =
-    html.includes('data-testid="pagination-forward"') ||
-    html.includes('aria-label="Next page"') ||
-    /page=\d+[^"]*"[^>]*rel="next"/.test(html);
-
-  return { listings, hasMore };
+  return { listings, nextUrl };
 }
 
 export async function runCrawler(
   sessionId: number,
-  location: string,
+  _location: string,
   productName: string,
   negativeKeywords: string[]
 ): Promise<void> {
   try {
     await updateSession(sessionId, { status: "running" });
 
-    let page = 1;
+    let currentUrl: string | null = buildApiUrl(productName, 0);
     let totalFound = 0;
     let totalFiltered = 0;
     let pagesLoaded = 0;
     const maxPages = 10;
 
-    while (page <= maxPages) {
-      const url = buildOlxUrl(location, productName, page);
-
-      let pageResult;
+    while (currentUrl && pagesLoaded < maxPages) {
+      let pageResult: { listings: ScrapedListing[]; nextUrl: string | null };
       try {
-        pageResult = await fetchPageListings(url);
+        pageResult = await fetchPageOffers(currentUrl);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         await updateSession(sessionId, {
           status: "failed",
-          errorMessage: `Failed to fetch page ${page}: ${msg}`,
+          errorMessage: `Failed on page ${pagesLoaded + 1}: ${msg}`,
           pagesLoaded,
           itemsFound: totalFound,
           itemsFiltered: totalFiltered,
@@ -181,11 +148,13 @@ export async function runCrawler(
 
       for (const listing of pageResult.listings) {
         const titleLower = listing.title.toLowerCase();
-        const descLower = (listing.description || "").toLowerCase();
+        const descLower = (listing.description ?? "").toLowerCase();
 
-        const isFiltered = negativeKeywords.some(
-          (kw) => titleLower.includes(kw.toLowerCase()) || descLower.includes(kw.toLowerCase())
-        );
+        const isFiltered =
+          negativeKeywords.length > 0 &&
+          negativeKeywords.some(
+            (kw) => kw && (titleLower.includes(kw.toLowerCase()) || descLower.includes(kw.toLowerCase()))
+          );
 
         if (isFiltered) {
           totalFiltered++;
@@ -221,12 +190,12 @@ export async function runCrawler(
         itemsFiltered: totalFiltered,
       });
 
-      if (!pageResult.hasMore || pageResult.listings.length === 0) {
+      if (!pageResult.nextUrl || pageResult.listings.length === 0) {
         break;
       }
 
-      page++;
-      await new Promise((r) => setTimeout(r, 1500 + Math.random() * 1000));
+      currentUrl = pageResult.nextUrl;
+      await new Promise((r) => setTimeout(r, 800 + Math.random() * 500));
     }
 
     await updateSession(sessionId, {
