@@ -11,6 +11,7 @@ import {
   GetListingResponse,
   DeleteListingParams,
   GetSessionsResponse,
+  DeleteSessionParams,
 } from "@workspace/api-zod";
 import { runCrawler } from "../lib/crawler.js";
 
@@ -140,6 +141,29 @@ router.delete("/listings/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Listing not found" });
     return;
   }
+
+  res.sendStatus(204);
+});
+
+router.delete("/sessions/:sessionId", async (req, res): Promise<void> => {
+  const params = DeleteSessionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [session] = await db
+    .select()
+    .from(crawlSessionsTable)
+    .where(eq(crawlSessionsTable.id, params.data.sessionId));
+
+  if (!session) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  await db.delete(listingsTable).where(eq(listingsTable.sessionId, params.data.sessionId));
+  await db.delete(crawlSessionsTable).where(eq(crawlSessionsTable.id, params.data.sessionId));
 
   res.sendStatus(204);
 });

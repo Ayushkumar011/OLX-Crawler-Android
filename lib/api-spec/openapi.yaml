@@ -164,6 +164,27 @@ paths:
                 items:
                   $ref: "#/components/schemas/CrawlSession"
 
+  /sessions/{sessionId}:
+    delete:
+      operationId: deleteSession
+      tags: [crawl]
+      summary: Delete a crawl session and all its listings
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted successfully
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:

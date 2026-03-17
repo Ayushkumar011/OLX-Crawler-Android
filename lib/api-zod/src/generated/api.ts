@@ -119,3 +119,10 @@ export const GetSessionsResponseItem = zod.object({
   updatedAt: zod.date(),
 });
 export const GetSessionsResponse = zod.array(GetSessionsResponseItem);
+
+/**
+ * @summary Delete a crawl session and all its listings
+ */
+export const DeleteSessionParams = zod.object({
+  sessionId: zod.coerce.number(),
+});

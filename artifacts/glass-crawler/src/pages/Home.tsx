@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
-import { Search, MapPin, Tag, Activity, History, ArrowRight } from "lucide-react";
+import { Search, MapPin, Tag, Activity, History, ArrowRight, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { 
   GlassCard, 
   NeonButton, 
@@ -11,19 +12,35 @@ import {
 } from "@/components/ui/glass-components";
 import { CrawlProgressModal } from "@/components/CrawlProgressModal";
 import { useCrawlManager } from "@/hooks/use-crawler";
-import { useGetSessions, CrawlSessionStatus } from "@workspace/api-client-react";
+import { useGetSessions, useDeleteSession, getGetSessionsQueryKey, CrawlSessionStatus } from "@workspace/api-client-react";
 
 export default function Home() {
   const [, setLocation] = useLocation();
   const { startCrawl, isStarting } = useCrawlManager();
   const { data: sessions, isLoading: loadingSessions } = useGetSessions();
+  const queryClient = useQueryClient();
+  const deleteSessionMutation = useDeleteSession();
   
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   
   // Form State
   const [location, setCrawlLocation] = useState("");
   const [productName, setProductName] = useState("");
   const [negativeKeywords, setNegativeKeywords] = useState("");
+
+  const handleDeleteSession = async (e: React.MouseEvent, sessionId: number) => {
+    e.stopPropagation();
+    setDeletingId(sessionId);
+    try {
+      await deleteSessionMutation.mutateAsync({ sessionId });
+      queryClient.invalidateQueries({ queryKey: getGetSessionsQueryKey() });
+    } catch (err) {
+      console.error("Failed to delete session", err);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleStartCrawl = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,42 +185,60 @@ export default function Home() {
                   No previous crawl missions found.
                 </GlassCard>
               ) : (
-                sessions.slice(0, 5).map((session, idx) => (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 + (idx * 0.1) }}
-                    key={session.id}
-                  >
-                    <GlassCard 
-                      className="p-5 glass-panel-hover cursor-pointer group"
-                      onClick={() => setLocation(`/results?sessionId=${session.id}`)}
+                <AnimatePresence mode="popLayout">
+                  {sessions.slice(0, 5).map((session, idx) => (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: 40, scale: 0.95 }}
+                      transition={{ delay: 0.5 + (idx * 0.1), exit: { duration: 0.25, delay: 0 } }}
+                      key={session.id}
+                      layout
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-bold text-white truncate pr-4">{session.productName}</h4>
-                        <div className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider
-                          ${session.status === CrawlSessionStatus.completed ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 
-                            session.status === CrawlSessionStatus.failed ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 
-                            'bg-blue-500/20 text-blue-400 border border-blue-500/30'}
-                        `}>
-                          {session.status}
+                      <GlassCard 
+                        className="p-5 glass-panel-hover cursor-pointer group relative"
+                        onClick={() => setLocation(`/results?sessionId=${session.id}`)}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-bold text-white truncate pr-2">{session.productName}</h4>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider
+                              ${session.status === CrawlSessionStatus.completed ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 
+                                session.status === CrawlSessionStatus.failed ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 
+                                'bg-blue-500/20 text-blue-400 border border-blue-500/30'}
+                            `}>
+                              {session.status}
+                            </div>
+                            <button
+                              onClick={(e) => handleDeleteSession(e, session.id)}
+                              disabled={deletingId === session.id}
+                              className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-500/20 text-white/40 hover:text-red-400 disabled:opacity-50"
+                              title="Delete session"
+                            >
+                              {deletingId === session.id ? (
+                                <div className="w-3.5 h-3.5 rounded-full border border-red-400 border-t-transparent animate-spin" />
+                              ) : (
+                                <Trash2 className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center text-sm text-white/50 mb-3">
-                        <MapPin className="w-3.5 h-3.5 mr-1" /> {session.location}
-                        <span className="mx-2">•</span>
-                        <span>{format(new Date(session.createdAt), 'MMM d, HH:mm')}</span>
-                      </div>
-                      
-                      <div className="flex justify-between items-center mt-4 pt-4 border-t border-white/10">
-                        <div className="text-xs text-white/60">
-                          <strong className="text-white">{session.itemsFound}</strong> items extracted
+                        <div className="flex items-center text-sm text-white/50 mb-3">
+                          <MapPin className="w-3.5 h-3.5 mr-1" /> {session.location}
+                          <span className="mx-2">•</span>
+                          <span>{format(new Date(session.createdAt), 'MMM d, HH:mm')}</span>
                         </div>
-                        <ArrowRight className="w-4 h-4 text-primary opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
-                      </div>
-                    </GlassCard>
-                  </motion.div>
-                ))
+                        
+                        <div className="flex justify-between items-center mt-4 pt-4 border-t border-white/10">
+                          <div className="text-xs text-white/60">
+                            <strong className="text-white">{session.itemsFound}</strong> items extracted
+                          </div>
+                          <ArrowRight className="w-4 h-4 text-primary opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+                        </div>
+                      </GlassCard>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               )}
             </div>
             
