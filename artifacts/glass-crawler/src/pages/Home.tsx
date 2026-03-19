@@ -111,13 +111,16 @@ export default function Home() {
               
               <form onSubmit={handleStartCrawl} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-white/70 mb-2 ml-1">Target Location</label>
+                  <div className="flex items-baseline justify-between mb-2 ml-1">
+                    <label className="text-sm font-medium text-white/70">Location Filter</label>
+                    <span className="text-xs text-white/35">filters by city or state</span>
+                  </div>
                   <div className="relative">
                     <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
                     <GlassInput 
                       required
                       className="pl-12"
-                      placeholder="e.g. Mumbai, Delhi, Bangalore" 
+                      placeholder="e.g. Mumbai, Delhi, Karnataka" 
                       value={location}
                       onChange={(e) => setCrawlLocation(e.target.value)}
                     />
