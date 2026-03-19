@@ -127,7 +127,7 @@ export function ListingDetailModal({ listing, onClose }: ListingDetailModalProps
               onClick={() => window.open(listing.listingUrl, '_blank')}
               className="flex items-center"
             >
-              View on OLX <ExternalLink className="w-4 h-4 ml-2" />
+              View on OLX.in <ExternalLink className="w-4 h-4 ml-2" />
             </NeonButton>
           </div>
 

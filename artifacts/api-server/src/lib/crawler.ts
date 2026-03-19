@@ -1,27 +1,56 @@
 import { db, crawlSessionsTable, listingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
-interface OlxApiOffer {
-  id: number;
+interface OlxInImage {
+  id: string;
   url: string;
-  title: string;
-  description: string;
-  params: Array<{ key: string; value: { label?: string } }>;
-  photos: Array<{ link: string }>;
-  user: {
-    name: string;
-    created: string;
-  };
-  location: {
-    city: { name: string };
-    region: { name: string };
-  };
+  big?: { url: string };
+  medium?: { url: string };
 }
 
-interface OlxApiResponse {
-  data: OlxApiOffer[];
-  links: {
-    next?: { href: string };
+interface OlxInItem {
+  id: string;
+  ad_id: number;
+  title: string;
+  description: string;
+  price?: {
+    value?: {
+      raw?: number;
+      display?: string;
+      currency?: { iso_4217: string };
+    };
+  };
+  images?: OlxInImage[];
+  user_name?: string;
+  user_id?: string;
+  user?: {
+    name?: string;
+  };
+  locations?: Array<{
+    lat?: number;
+    lon?: number;
+    region_id?: string;
+    city_id?: string;
+    district_id?: string;
+  }>;
+  locations_resolved?: {
+    COUNTRY_name?: string;
+    ADMIN_LEVEL_1_name?: string;
+    ADMIN_LEVEL_2_name?: string;
+    ADMIN_LEVEL_3_name?: string;
+    SUBLOCALITY_LEVEL_1_name?: string;
+  };
+  created_at?: string;
+}
+
+interface OlxInResponse {
+  data: OlxInItem[];
+  metadata?: {
+    total_count?: number;
+    count?: number;
+    current_page?: number;
+    total_pages?: number;
+    per_page?: number;
   };
 }
 
@@ -53,64 +82,89 @@ async function updateSession(
     .where(eq(crawlSessionsTable.id, sessionId));
 }
 
-function buildApiUrl(productName: string, offset: number): string {
-  const query = encodeURIComponent(productName);
-  return `https://www.olx.pl/api/v1/offers/?offset=${offset}&limit=40&query=${query}&currency=PLN&sort_by=created_at%3Adesc`;
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 60);
 }
 
-function parseOffer(offer: OlxApiOffer): ScrapedListing {
-  const priceParam = offer.params?.find((p) => p.key === "price");
-  const price = priceParam?.value?.label ?? null;
+function buildApiUrl(productName: string, page: number): string {
+  const query = encodeURIComponent(productName);
+  return `https://www.olx.in/api/relevance/v4/search?query=${query}&location_id=0&page=${page}&per_page=40`;
+}
+
+function buildListingUrl(item: OlxInItem): string {
+  const slug = slugify(item.title);
+  return `https://www.olx.in/item/${slug}_ID${item.ad_id}.html`;
+}
+
+function extractLocation(item: OlxInItem): string | null {
+  const lr = item.locations_resolved;
+  if (lr) {
+    const city = lr.ADMIN_LEVEL_3_name ?? "";
+    const state = lr.ADMIN_LEVEL_1_name ?? "";
+    if (city && state) return `${city}, ${state}`;
+    if (city) return city;
+    if (state) return state;
+  }
+  return null;
+}
+
+function parseItem(item: OlxInItem): ScrapedListing {
+  const price = item.price?.value?.display ?? null;
 
   let imageUrl: string | null = null;
-  if (offer.photos && offer.photos.length > 0) {
-    imageUrl = offer.photos[0].link.replace("{width}x{height}", "400x300");
+  if (item.images && item.images.length > 0) {
+    imageUrl = item.images[0].big?.url ?? item.images[0].url ?? null;
   }
 
-  const city = offer.location?.city?.name ?? "";
-  const region = offer.location?.region?.name ?? "";
-  const location = city && region ? `${city}, ${region}` : city || region || null;
+  const location = extractLocation(item);
 
-  const sellerJoinDate = offer.user?.created
-    ? new Date(offer.user.created).toLocaleDateString("pl-PL", {
-        year: "numeric",
-        month: "long",
-      })
-    : null;
+  const sellerName =
+    item.user_name ??
+    item.user?.name ??
+    null;
 
   return {
-    olxId: String(offer.id),
-    title: offer.title,
+    olxId: String(item.id),
+    title: item.title,
     price,
     imageUrl,
-    listingUrl: offer.url,
-    description: offer.description?.slice(0, 1000) ?? null,
-    sellerName: offer.user?.name ?? null,
-    sellerJoinDate,
+    listingUrl: buildListingUrl(item),
+    description: item.description?.slice(0, 1000) ?? null,
+    sellerName,
+    sellerJoinDate: null,
     location,
   };
 }
 
-async function fetchPageOffers(url: string): Promise<{ listings: ScrapedListing[]; nextUrl: string | null }> {
+async function fetchPage(url: string): Promise<{ listings: ScrapedListing[]; hasMore: boolean }> {
   const response = await fetch(url, {
     headers: {
       Accept: "application/json",
+      "Accept-Language": "en-IN,en;q=0.9",
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      Referer: "https://www.olx.pl/",
+      Referer: "https://www.olx.in/",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Site": "same-origin",
     },
   });
 
   if (!response.ok) {
-    throw new Error(`OLX API error HTTP ${response.status}: ${response.statusText}`);
+    throw new Error(`OLX India API error HTTP ${response.status}: ${response.statusText}`);
   }
 
-  const json = (await response.json()) as OlxApiResponse;
+  const json = (await response.json()) as OlxInResponse;
+  const items = json.data ?? [];
+  const listings = items.map(parseItem);
 
-  const listings = (json.data ?? []).map(parseOffer);
-  const nextUrl = json.links?.next?.href ?? null;
+  const hasMore = items.length === 40;
 
-  return { listings, nextUrl };
+  return { listings, hasMore };
 }
 
 export async function runCrawler(
@@ -122,16 +176,18 @@ export async function runCrawler(
   try {
     await updateSession(sessionId, { status: "running" });
 
-    let currentUrl: string | null = buildApiUrl(productName, 0);
+    let page = 1;
     let totalFound = 0;
     let totalFiltered = 0;
     let pagesLoaded = 0;
     const maxPages = 10;
 
-    while (currentUrl && pagesLoaded < maxPages) {
-      let pageResult: { listings: ScrapedListing[]; nextUrl: string | null };
+    while (pagesLoaded < maxPages) {
+      const url = buildApiUrl(productName, page);
+
+      let pageResult: { listings: ScrapedListing[]; hasMore: boolean };
       try {
-        pageResult = await fetchPageOffers(currentUrl);
+        pageResult = await fetchPage(url);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         await updateSession(sessionId, {
@@ -180,7 +236,7 @@ export async function runCrawler(
             })
             .onConflictDoNothing();
         } catch {
-          // Duplicate - skip silently
+          // Duplicate – skip silently
         }
       }
 
@@ -190,12 +246,12 @@ export async function runCrawler(
         itemsFiltered: totalFiltered,
       });
 
-      if (!pageResult.nextUrl || pageResult.listings.length === 0) {
+      if (!pageResult.hasMore || pageResult.listings.length === 0) {
         break;
       }
 
-      currentUrl = pageResult.nextUrl;
-      await new Promise((r) => setTimeout(r, 800 + Math.random() * 500));
+      page++;
+      await new Promise((r) => setTimeout(r, 600 + Math.random() * 400));
     }
 
     await updateSession(sessionId, {

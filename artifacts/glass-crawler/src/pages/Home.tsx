@@ -90,7 +90,7 @@ export default function Home() {
             Discover with <GradientText>GlassCrawler</GradientText>
           </h1>
           <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto leading-relaxed">
-            Deploy intelligent agents to scrape, filter, and extract pristine listing data from OLX in real-time.
+            Deploy intelligent agents to scrape, filter, and extract pristine listing data from OLX.in in real-time.
           </p>
         </motion.div>
 
@@ -117,7 +117,7 @@ export default function Home() {
                     <GlassInput 
                       required
                       className="pl-12"
-                      placeholder="e.g. Warsaw, Berlin, Remote" 
+                      placeholder="e.g. Mumbai, Delhi, Bangalore" 
                       value={location}
                       onChange={(e) => setCrawlLocation(e.target.value)}
                     />
@@ -131,7 +131,7 @@ export default function Home() {
                     <GlassInput 
                       required
                       className="pl-12"
-                      placeholder="e.g. Macbook Pro M2, Herman Miller Chair" 
+                      placeholder="e.g. iPhone 14, Royal Enfield, Samsung TV" 
                       value={productName}
                       onChange={(e) => setProductName(e.target.value)}
                     />
