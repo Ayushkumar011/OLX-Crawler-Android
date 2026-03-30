@@ -1,0 +1,83 @@
+Product Requirements Document: OLX Crawler App
+1. Product Overview
+Name: GlassCrawler (Working Title)
+Objective: An Android application that allows users to scrape, filter, and locally store product listings from OLX based on specific search parameters. The app will feature a modern "Liquid Glass" (Glassmorphism) UI theme.
+Use Case: Users who want to monitor specific local markets, track pricing, and filter out spam or irrelevant listings without manually scrolling through the OLX app.
+
+2. Key Features (Functional Requirements)
+2.1. Search & Filter Configuration
+Location Input: Text field or dropdown to specify the target city/region.
+
+Product Name: The core search query (e.g., "MacBook Pro").
+
+Negative Keywords: A comma-separated list of keywords to exclude. If a scraped listing contains any of these words in its title or description (e.g., "broken", "case", "box only"), it is immediately discarded.
+
+2.2. The Crawler Engine
+Pagination Handling: The crawler must systematically trigger the "Load More" button on the OLX web page until it is no longer present in the DOM, ensuring maximum data retrieval.
+
+Data Extraction: For every valid product, the crawler must extract:
+
+Product Title
+
+Price
+
+Main Image URL(s)
+
+Direct URL to the listing
+
+Description details
+
+Seller details (Name, join date, etc., if available on the listing card).
+
+Background Execution: The crawling process should run asynchronously so it does not freeze the UI.
+
+2.3. Local Data Storage
+Offline Access: All scraped and filtered data must be saved to a local database.
+
+Duplicate Handling: The database must check listing IDs or URLs to ensure the same product isn't saved multiple times across different crawl sessions.
+
+2.4. User Interface (Liquid Glass Theme)
+Aesthetic: The app will use Glassmorphism—translucent, frosted-glass-like cards overlaid on a vibrant, colorful, or gradient background.
+
+Product Cards: Display extracted data in these glass cards, featuring the image at the top, bold price, and the title. Tapping the card opens the saved details.
+
+3. Technical Specifications
+3.1. Tech Stack
+Language: Kotlin
+
+UI Framework: Jetpack Compose (Highly recommended for complex custom UI like Liquid Glass/Blur effects).
+
+Local Database: Room Database (SQLite abstraction).
+
+Asynchronous Processing: Kotlin Coroutines & Kotlin Flow.
+
+Network/Image Loading: Coil (for loading scraped image URLs).
+
+3.2. Scraping Approach Options
+Option A: Hidden WebView + JavaScript Injection (Recommended for client-side)
+
+How it works: Load the OLX URL in an invisible WebView. Inject a JS script to find the "Load More" button, click it, wait for network idle, repeat until gone. Then, extract the page's HTML.
+
+Pros: Executes JavaScript natively, bypassing simple JS-challenges.
+
+Option B: Jsoup HTML Parser
+
+How it works: Fetch the HTML directly via HTTP requests.
+
+Cons: Very difficult to handle the "Load More" pagination if OLX uses dynamic API calls (AJAX/React) instead of static HTML pages.
+
+4. User Experience (UX) Flow
+Home Screen: Displays a vibrant gradient background. Features frosted glass input fields for Location, Product, and Exclude Keywords. A prominent "Start Crawl" button.
+
+Crawling State: A modal or glass overlay appears with a progress indicator, showing real-time stats (e.g., "Pages loaded: 4 | Items found: 42 | Items filtered: 12").
+
+Results Screen: A scrollable grid (LazyVerticalGrid in Compose) of Liquid Glass product cards.
+
+Detail View: Clicking a card expands it to show full seller details, description, and a button to "View on Web" which opens the actual OLX link.
+
+5. Out of Scope (Future Phases)
+Automated daily background scraping (requires WorkManager and risks heavy battery drain/IP bans).
+
+Cloud syncing across devices.
+
+Bypassing Captchas (if OLX throws a captcha, the client-side scrape will simply fail and alert the user).

@@ -1,0 +1,5 @@
+docker start pgdb
+
+mobile,apple,dell,asus,lenovo,acer,msi,acer,hp,tab,tablet,iphone,oneplus,realme,xiaomi,poco,oppo,vivo,motorola,nokia,sony,lg,huawei,
+
+244E-C87F

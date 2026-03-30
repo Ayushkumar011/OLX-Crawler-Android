@@ -1,0 +1,15 @@
+packages:
+  "framer-motion": "For fluid liquid glass animations, modal transitions, and staggered grid reveals"
+  "date-fns": "For formatting crawl session and listing dates beautifully"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility to safely merge Tailwind classes"
+
+images:
+  - path: "artifacts/glass-crawler/public/images/glass-bg.png"
+    description: "Deep dark abstract background with vibrant neon purple, cyan, and deep blue gradient liquid orbs floating. High-end glassmorphism aesthetic, dark mode, 8k resolution, smooth blurs"
+    aspect_ratio: "16:9"
+
+notes:
+  - Using generated hooks from @workspace/api-client-react
+  - Implementing polling for crawl status using React Query's refetchInterval
+  - Glassmorphism UI requires backdrop-filter support in browser

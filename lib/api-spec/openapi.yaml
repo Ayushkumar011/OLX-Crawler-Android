@@ -1,0 +1,572 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: GlassCrawler API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: crawl
+    description: Crawl operations
+  - name: listings
+    description: Listing operations
+  - name: watchlist
+    description: Watchlist operations
+  - name: negative-keywords
+    description: Negative keyword operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /crawl:
+    post:
+      operationId: startCrawl
+      tags: [crawl]
+      summary: Start a crawl session
+      description: Starts crawling OLX for listings based on given parameters
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrawlRequest"
+      responses:
+        "202":
+          description: Crawl started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrawlSession"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /crawl/{sessionId}:
+    get:
+      operationId: getCrawlStatus
+      tags: [crawl]
+      summary: Get crawl session status
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Session status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrawlSession"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /listings:
+    get:
+      operationId: getListings
+      tags: [listings]
+      summary: Get all stored listings
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: ["string", "null"]
+        - name: sessionId
+          in: query
+          required: false
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: List of listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Listing"
+
+  /listings/{id}:
+    get:
+      operationId: getListing
+      tags: [listings]
+      summary: Get a single listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Single listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteListing
+      tags: [listings]
+      summary: Delete a listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted successfully
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /sessions:
+    get:
+      operationId: getSessions
+      tags: [crawl]
+      summary: Get all crawl sessions
+      responses:
+        "200":
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrawlSession"
+
+  /sessions/{sessionId}:
+    delete:
+      operationId: deleteSession
+      tags: [crawl]
+      summary: Delete a crawl session and all its listings
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted successfully
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /watchlist:
+    get:
+      operationId: getWatchlist
+      tags: [watchlist]
+      summary: Get active watchlist items
+      responses:
+        "200":
+          description: List of active watchlist items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WatchlistItem"
+    post:
+      operationId: addToWatchlist
+      tags: [watchlist]
+      summary: Add an item to the watchlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddWatchlistRequest"
+      responses:
+        "201":
+          description: Added to watchlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchlistItem"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /watchlist/recent:
+    get:
+      operationId: getRecentWatchlist
+      tags: [watchlist]
+      summary: Get recent (removed) watchlist items
+      responses:
+        "200":
+          description: List of recent watchlist items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WatchlistItem"
+
+  /watchlist/{id}:
+    delete:
+      operationId: removeFromWatchlist
+      tags: [watchlist]
+      summary: Remove from active watchlist (moves to recent)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Moved to recent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchlistItem"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /watchlist/recent/{id}:
+    delete:
+      operationId: deleteFromRecentWatchlist
+      tags: [watchlist]
+      summary: Permanently delete an item from recent watchlist
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted successfully
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /negative-keywords:
+    get:
+      operationId: getNegativeKeywords
+      tags: [negative-keywords]
+      summary: Get all stored negative keywords
+      responses:
+        "200":
+          description: List of negative keywords
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NegativeKeyword"
+    post:
+      operationId: addNegativeKeyword
+      tags: [negative-keywords]
+      summary: Add a new negative keyword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddNegativeKeywordRequest"
+      responses:
+        "201":
+          description: Added to negative keywords
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NegativeKeyword"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /negative-keywords/{id}:
+    put:
+      operationId: updateNegativeKeyword
+      tags: [negative-keywords]
+      summary: Update a negative keyword
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddNegativeKeywordRequest"
+      responses:
+        "200":
+          description: Updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NegativeKeyword"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteNegativeKeyword
+      tags: [negative-keywords]
+      summary: Permanently delete a negative keyword
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted successfully
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    CrawlRequest:
+      type: object
+      properties:
+        location:
+          type: string
+        productName:
+          type: string
+        negativeKeywords:
+          type: ["string", "null"]
+          description: Comma-separated list of keywords to exclude
+      required:
+        - location
+        - productName
+
+    CrawlSession:
+      type: object
+      properties:
+        id:
+          type: integer
+        location:
+          type: string
+        productName:
+          type: string
+        negativeKeywords:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        pagesLoaded:
+          type: integer
+        itemsFound:
+          type: integer
+        itemsFiltered:
+          type: integer
+        errorMessage:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - location
+        - productName
+        - status
+        - pagesLoaded
+        - itemsFound
+        - itemsFiltered
+        - createdAt
+        - updatedAt
+
+    Listing:
+      type: object
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        olxId:
+          type: string
+        title:
+          type: string
+        price:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        listingUrl:
+          type: string
+        description:
+          type: ["string", "null"]
+        sellerName:
+          type: ["string", "null"]
+        sellerJoinDate:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        listingDate:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - sessionId
+        - olxId
+        - title
+        - listingUrl
+        - createdAt
+
+    WatchlistItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        olxId:
+          type: string
+        title:
+          type: string
+        price:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        listingUrl:
+          type: string
+        description:
+          type: ["string", "null"]
+        sellerName:
+          type: ["string", "null"]
+        sellerJoinDate:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [active, recent]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - olxId
+        - title
+        - listingUrl
+        - status
+        - createdAt
+
+    AddWatchlistRequest:
+      type: object
+      properties:
+        olxId:
+          type: string
+        title:
+          type: string
+        price:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        listingUrl:
+          type: string
+        description:
+          type: ["string", "null"]
+        sellerName:
+          type: ["string", "null"]
+        sellerJoinDate:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+      required:
+        - olxId
+        - title
+        - listingUrl
+
+    NegativeKeyword:
+      type: object
+      properties:
+        id:
+          type: integer
+        keyword:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - keyword
+        - createdAt
+
+    AddNegativeKeywordRequest:
+      type: object
+      properties:
+        keyword:
+          type: string
+      required:
+        - keyword
