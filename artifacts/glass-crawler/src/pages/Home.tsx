@@ -4,18 +4,18 @@ import { useLocation } from "wouter";
 import { format } from "date-fns";
 import { Search, MapPin, Tag, Activity, History, ArrowRight, Trash2, Bookmark, Edit2, Copy, Plus, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { 
-  GlassCard, 
-  NeonButton, 
-  GlassInput, 
-  GradientText 
+import {
+  GlassCard,
+  NeonButton,
+  GlassInput,
+  GradientText
 } from "@/components/ui/glass-components";
 import { CrawlProgressModal } from "@/components/CrawlProgressModal";
 import { useCrawlManager } from "@/hooks/use-crawler";
-import { 
-  useGetSessions, 
-  useDeleteSession, 
-  getGetSessionsQueryKey, 
+import {
+  useGetSessions,
+  useDeleteSession,
+  getGetSessionsQueryKey,
   CrawlSessionStatus,
   useGetNegativeKeywords,
   useAddNegativeKeyword,
@@ -30,10 +30,10 @@ export default function Home() {
   const { data: sessions, isLoading: loadingSessions } = useGetSessions();
   const queryClient = useQueryClient();
   const deleteSessionMutation = useDeleteSession();
-  
+
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  
+
   // Form State
   const [location, setCrawlLocation] = useState("");
   const [productName, setProductName] = useState("");
@@ -117,10 +117,10 @@ export default function Home() {
 
   return (
     <div className="min-h-screen relative w-full pt-24 pb-12 px-4 sm:px-6 lg:px-8">
-      
+
       {/* Top Navigation */}
       <div className="absolute top-6 right-6 sm:top-8 sm:right-8 z-50">
-        <button 
+        <button
           onClick={() => setLocation('/watchlist')}
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-medium backdrop-blur-md transition-all duration-300 shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.2)]"
         >
@@ -131,7 +131,7 @@ export default function Home() {
 
       {/* Background Image Setup */}
       <div className="fixed inset-0 z-[-1] bg-background">
-        <img 
+        <img
           src={`${import.meta.env.BASE_URL}images/glass-bg.png`}
           alt="Liquid Glass Background"
           className="w-full h-full object-cover opacity-80 mix-blend-screen"
@@ -142,7 +142,7 @@ export default function Home() {
 
       <div className="max-w-5xl mx-auto">
         {/* Hero Section */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
@@ -161,9 +161,9 @@ export default function Home() {
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
+
           {/* Form Column */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
@@ -174,7 +174,7 @@ export default function Home() {
                 <Search className="w-6 h-6 mr-3 text-secondary" />
                 New Crawl Mission
               </h2>
-              
+
               <form onSubmit={handleStartCrawl} className="space-y-5">
                 <div>
                   <div className="flex items-baseline justify-between mb-2 ml-1">
@@ -183,10 +183,10 @@ export default function Home() {
                   </div>
                   <div className="relative">
                     <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                    <GlassInput 
+                    <GlassInput
                       required
                       className="pl-12"
-                      placeholder="e.g. Mumbai, Delhi, Karnataka" 
+                      placeholder="e.g. Mumbai, Delhi, Karnataka"
                       value={location}
                       onChange={(e) => setCrawlLocation(e.target.value)}
                     />
@@ -197,10 +197,10 @@ export default function Home() {
                   <label className="block text-sm font-medium text-white/70 mb-2 ml-1">Product Query</label>
                   <div className="relative">
                     <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                    <GlassInput 
+                    <GlassInput
                       required
                       className="pl-12"
-                      placeholder="e.g. iPhone 14, Royal Enfield, Samsung TV" 
+                      placeholder="e.g. iPhone 14, Royal Enfield, Samsung TV"
                       value={productName}
                       onChange={(e) => setProductName(e.target.value)}
                     />
@@ -209,8 +209,8 @@ export default function Home() {
 
                 <div>
                   <label className="block text-sm font-medium text-white/70 mb-2 ml-1">Negative Keywords (Optional)</label>
-                  <GlassInput 
-                    placeholder="Comma separated: broken, parts, damaged" 
+                  <GlassInput
+                    placeholder="Comma separated: broken, parts, damaged"
                     value={negativeKeywords}
                     onChange={(e) => setNegativeKeywords(e.target.value)}
                   />
@@ -218,8 +218,8 @@ export default function Home() {
                 </div>
 
                 <div className="pt-4">
-                  <NeonButton 
-                    type="submit" 
+                  <NeonButton
+                    type="submit"
                     className="w-full flex justify-center items-center text-lg py-4"
                     disabled={isStarting || !location || !productName}
                   >
@@ -236,8 +236,8 @@ export default function Home() {
                 Saved Negative Keywords
               </h2>
               <form onSubmit={handleAddKeyword} className="flex gap-2 mb-4">
-                <GlassInput 
-                  placeholder="Add new keyword..." 
+                <GlassInput
+                  placeholder="Add new keyword..."
                   value={newKeywordValue}
                   onChange={(e) => setNewKeywordValue(e.target.value)}
                   className="flex-1"
@@ -255,11 +255,11 @@ export default function Home() {
                     No saved keywords yet.
                   </div>
                 ) : (
-                  storedKeywords.map(kw => (
+                  Array.isArray(storedKeywords) ? storedKeywords.map(kw => (
                     <div key={kw.id} className="flex flex-wrap items-center justify-between p-3 rounded-lg bg-black/20 border border-white/5 hover:border-white/10 transition-colors gap-2">
                       {editingKeywordId === kw.id ? (
                         <div className="flex flex-1 items-center gap-2">
-                          <GlassInput 
+                          <GlassInput
                             value={editKeywordValue}
                             onChange={(e) => setEditKeywordValue(e.target.value)}
                             className="py-1 px-3 h-8 text-sm"
@@ -270,20 +270,20 @@ export default function Home() {
                             }}
                           />
                           <button onClick={() => handleUpdateKeyword(kw.id)} className="text-xs text-primary hover:text-white px-2">Save</button>
-                          <button onClick={() => setEditingKeywordId(null)} className="text-xs text-white/50 hover:text-white"><X className="w-4 h-4"/></button>
+                          <button onClick={() => setEditingKeywordId(null)} className="text-xs text-white/50 hover:text-white"><X className="w-4 h-4" /></button>
                         </div>
                       ) : (
                         <>
                           <span className="text-white/80 text-sm font-medium pl-1 truncate max-w-[150px] sm:max-w-[200px]">{kw.keyword}</span>
                           <div className="flex items-center gap-1 shrink-0">
-                            <button 
+                            <button
                               onClick={() => handleCopyKeyword(kw.keyword)}
                               className="p-1.5 rounded-md text-white/40 hover:text-primary hover:bg-white/5 transition-colors"
                               title="Add to current crawl"
                             >
                               <Copy className="w-3.5 h-3.5" />
                             </button>
-                            <button 
+                            <button
                               onClick={() => {
                                 setEditingKeywordId(kw.id);
                                 setEditKeywordValue(kw.keyword);
@@ -293,7 +293,7 @@ export default function Home() {
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
-                            <button 
+                            <button
                               onClick={() => handleDeleteKeyword(kw.id)}
                               className="p-1.5 rounded-md text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                               title="Delete keyword"
@@ -304,14 +304,14 @@ export default function Home() {
                         </>
                       )}
                     </div>
-                  ))
+                  )) : null
                 )}
               </div>
             </GlassCard>
           </motion.div>
 
           {/* History Column */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
@@ -344,7 +344,7 @@ export default function Home() {
                       key={session.id}
                       layout
                     >
-                      <GlassCard 
+                      <GlassCard
                         className="p-5 glass-panel-hover cursor-pointer group relative"
                         onClick={() => setLocation(`/results?sessionId=${session.id}`)}
                       >
@@ -352,9 +352,9 @@ export default function Home() {
                           <h4 className="font-bold text-white truncate pr-2">{session.productName}</h4>
                           <div className="flex items-center gap-2 shrink-0">
                             <div className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider
-                              ${session.status === CrawlSessionStatus.completed ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 
-                                session.status === CrawlSessionStatus.failed ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 
-                                'bg-blue-500/20 text-blue-400 border border-blue-500/30'}
+                              ${session.status === CrawlSessionStatus.completed ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                                session.status === CrawlSessionStatus.failed ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                                  'bg-blue-500/20 text-blue-400 border border-blue-500/30'}
                             `}>
                               {session.status}
                             </div>
@@ -377,7 +377,7 @@ export default function Home() {
                           <span className="mx-2">•</span>
                           <span>{format(new Date(session.createdAt), 'MMM d, HH:mm')}</span>
                         </div>
-                        
+
                         <div className="flex justify-between items-center mt-4 pt-4 border-t border-white/10">
                           <div className="text-xs text-white/60">
                             <strong className="text-white">{session.itemsFound}</strong> items extracted
@@ -390,10 +390,10 @@ export default function Home() {
                 </AnimatePresence>
               )}
             </div>
-            
+
             {sessions && sessions.length > 5 && (
               <div className="mt-6 text-center">
-                <button 
+                <button
                   onClick={() => setLocation('/results')}
                   className="text-sm text-primary hover:text-white transition-colors"
                 >
@@ -401,14 +401,14 @@ export default function Home() {
                 </button>
               </div>
             )}
-            
+
           </motion.div>
         </div>
       </div>
 
-      <CrawlProgressModal 
-        sessionId={activeSessionId} 
-        onClose={() => setActiveSessionId(null)} 
+      <CrawlProgressModal
+        sessionId={activeSessionId}
+        onClose={() => setActiveSessionId(null)}
       />
     </div>
   );

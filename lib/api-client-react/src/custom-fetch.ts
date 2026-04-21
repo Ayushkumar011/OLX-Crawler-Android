@@ -306,9 +306,10 @@ export async function customFetch<T = unknown>(
     headers.set("accept", DEFAULT_JSON_ACCEPT);
   }
 
-  const requestInfo = { method, url: resolveUrl(input) };
+  const resolvedUrl = resolveUrl(input);
+  const requestInfo = { method, url: resolvedUrl };
 
-  const response = await fetch(input, { ...init, method, headers });
+  const response = await fetch(resolvedUrl, { ...init, method, headers });
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
