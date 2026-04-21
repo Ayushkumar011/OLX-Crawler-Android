@@ -44,6 +44,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY artifacts/api-server/package.json ./artifacts/api-server/
 COPY lib/db/package.json ./lib/db/
 COPY lib/api-client-react/package.json ./lib/api-client-react/
+COPY lib/api-zod/package.json ./lib/api-zod/
 
 # Exclude unnecessary dev packages for production runner if possible, or just install prod
 RUN pnpm install --prod
