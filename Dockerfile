@@ -17,7 +17,7 @@ COPY lib/db/package.json ./lib/db/
 COPY scripts/package.json ./scripts/
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # Copy source files
 COPY . .
@@ -41,7 +41,7 @@ COPY lib/db/package.json ./lib/db/
 COPY lib/api-client-react/package.json ./lib/api-client-react/
 
 # Exclude unnecessary dev packages for production runner if possible, or just install prod
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod
 
 # Copy compiled code
 COPY --from=builder /app/artifacts/api-server/build/ ./artifacts/api-server/build/
