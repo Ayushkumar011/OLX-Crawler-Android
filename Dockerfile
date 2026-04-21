@@ -50,7 +50,7 @@ COPY lib/api-zod/package.json ./lib/api-zod/
 RUN pnpm install --prod
 
 # Copy compiled code
-COPY --from=builder /app/artifacts/api-server/build/ ./artifacts/api-server/build/
+COPY --from=builder /app/artifacts/api-server/dist/ ./artifacts/api-server/dist/
 COPY --from=builder /app/lib/ ./lib/
 COPY --from=builder /app/node_modules ./node_modules
 
@@ -58,4 +58,4 @@ COPY --from=builder /app/node_modules ./node_modules
 EXPOSE 8080
 ENV PORT=8080
 
-CMD ["node", "artifacts/api-server/build/index.js"]
+CMD ["node", "artifacts/api-server/dist/index.cjs"]
