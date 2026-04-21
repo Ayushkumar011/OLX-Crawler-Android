@@ -183,6 +183,22 @@ export async function runCrawler(
 
     page = await browser.newPage();
 
+    // Enable request interception
+    await page.setRequestInterception(true);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    page.on('request', (request: any) => {
+      const resourceType = request.resourceType();
+      
+      // Abort heavy resources that we don't need for scraping text
+      if (['image', 'stylesheet', 'font', 'media', 'other'].includes(resourceType)) {
+        request.abort();
+      } else {
+        // Only allow HTML, Scripts (usually needed for OLX to render), and XHR/Fetch API calls
+        request.continue();
+      }
+    });
+
     // Stealth: remove navigator.webdriver flag
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, "webdriver", { get: () => false });
