@@ -15,9 +15,10 @@ COPY artifacts/glass-crawler/package.json ./artifacts/glass-crawler/
 COPY lib/api-client-react/package.json ./lib/api-client-react/
 COPY lib/db/package.json ./lib/db/
 COPY scripts/package.json ./scripts/
-
-# 👉 ADD THIS LINE for api-zod (adjust the source path if it is different in your repo)
 COPY lib/api-zod/package.json ./lib/api-zod/
+
+# 👉 THE FIX: Added the missing mockup-sandbox package.json
+COPY artifacts/mockup-sandbox/package.json ./artifacts/mockup-sandbox/
 
 # Install dependencies
 RUN pnpm install
@@ -27,6 +28,7 @@ COPY . .
 
 # Build the project
 RUN pnpm run build
+
 
 # Stage 2: Production environment
 FROM node:20-alpine AS runner
