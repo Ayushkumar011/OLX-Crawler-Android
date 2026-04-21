@@ -16,6 +16,9 @@ COPY lib/api-client-react/package.json ./lib/api-client-react/
 COPY lib/db/package.json ./lib/db/
 COPY scripts/package.json ./scripts/
 
+# 👉 ADD THIS LINE for api-zod (adjust the source path if it is different in your repo)
+COPY lib/api-zod/package.json ./lib/api-zod/
+
 # Install dependencies
 RUN pnpm install
 
