@@ -12,7 +12,9 @@ export const GlassCard = React.forwardRef<HTMLDivElement, HTMLMotionProps<"div">
       >
         {/* Subtle inner highlight */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none rounded-2xl" />
-        <div className="relative z-10">{children}</div>
+
+        {/* FIX: Changed standard div to motion.div to support motion children */}
+        <motion.div className="relative z-10">{children}</motion.div>
       </motion.div>
     );
   }

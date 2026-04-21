@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { 
-  useGetCrawlStatus, 
-  useStartCrawl, 
+import {
+  useGetCrawlStatus,
+  useStartCrawl,
   getGetSessionsQueryKey,
   CrawlSessionStatus,
   type CrawlRequest
@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 export function useCrawlManager() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
+
   const startMutation = useStartCrawl({
     mutation: {
       onSuccess: () => {
@@ -46,9 +46,11 @@ export function useCrawlManager() {
 // Polling hook for active session
 export function useActiveCrawlSession(sessionId: number | null) {
   const { data: session, isLoading, error } = useGetCrawlStatus(
-    sessionId as number, 
+    sessionId as number,
     {
       query: {
+        // 👉 THE FIX: Added the mandatory queryKey property
+        queryKey: ['crawlSession', sessionId as number],
         enabled: !!sessionId,
         // Poll every 2 seconds if running or pending
         refetchInterval: (query) => {
