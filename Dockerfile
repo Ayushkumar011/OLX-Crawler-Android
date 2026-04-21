@@ -78,4 +78,4 @@ COPY --from=builder /app/node_modules ./node_modules
 EXPOSE 8080
 ENV PORT=8080
 
-CMD ["node", "artifacts/api-server/dist/index.cjs"]
+CMD ["node", "--max-old-space-size=150", "artifacts/api-server/dist/index.cjs"]

@@ -147,6 +147,8 @@ export async function runCrawler(
   negativeKeywords: string[]
 ): Promise<void> {
   let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let page: any = null;
 
   try {
     await updateSession(sessionId, { status: "running" });
@@ -163,6 +165,14 @@ export async function runCrawler(
         ...chromium.args,
         "--no-sandbox",
         "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--no-zygote",
+        "--single-process",
+        "--disable-extensions",
+        "--disable-background-networking",
+        "--disable-default-apps",
+        "--mute-audio",
         "--disable-blink-features=AutomationControlled",
         `--user-agent=${ua}`,
       ],
@@ -171,7 +181,7 @@ export async function runCrawler(
       headless: true,
     });
 
-    const page = await browser.newPage();
+    page = await browser.newPage();
 
     // Stealth: remove navigator.webdriver flag
     await page.evaluateOnNewDocument(() => {
@@ -455,6 +465,13 @@ export async function runCrawler(
       `[Crawler #${sessionId}] Done. Found=${totalFound}, Filtered=${totalFiltered}, LoadMoreClicks=${loadMoreClicks}`
     );
   } catch (err) {
+    if (page) {
+      try {
+        await page.close();
+      } catch {
+        /* ignore */
+      }
+    }
     if (browser) {
       try {
         await browser.close();
@@ -468,5 +485,20 @@ export async function runCrawler(
       status: "failed",
       errorMessage: msg,
     });
+  } finally {
+    if (page) {
+      try {
+        await page.close();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (browser) {
+      try {
+        await browser.close();
+      } catch {
+        /* ignore */
+      }
+    }
   }
 }
