@@ -191,10 +191,10 @@ export async function runCrawler(
       const resourceType = request.resourceType();
       
       // Abort heavy resources that we don't need for scraping text
-      if (['image', 'stylesheet', 'font', 'media', 'other'].includes(resourceType)) {
+      if (['image', 'font', 'media'].includes(resourceType)) {
         request.abort();
       } else {
-        // Only allow HTML, Scripts (usually needed for OLX to render), and XHR/Fetch API calls
+        // Only allow HTML, Scripts (usually needed for OLX to render), CSS, and XHR/Fetch API calls
         request.continue();
       }
     });
